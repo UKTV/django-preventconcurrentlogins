@@ -13,6 +13,8 @@ class PreventConcurrentLoginsMiddleware(object):
     """
     def do_check(self, request):
         if hasattr(request, 'user') and request.user.is_authenticated():
+            if not request.session.session_key:
+                request.session.save()
             key_from_cookie = request.session.session_key
             if hasattr(request.user, 'visitor'):
                 session_key_in_visitor_db = request.user.visitor.session_key

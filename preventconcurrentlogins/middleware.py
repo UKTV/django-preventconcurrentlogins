@@ -1,18 +1,31 @@
 from django.contrib.sessions.models import Session
 from django.conf import settings
+from django import VERSION as DJANGO_VERSION
+from django.utils import deprecation
 from importlib import import_module
 
 from preventconcurrentlogins.models import Visitor
 
 engine = import_module(settings.SESSION_ENGINE)
 
-class PreventConcurrentLoginsMiddleware(object):
+
+def is_authenticated(user):
+    """
+    Check if user is authenticated, consider backwards compatibility
+    """
+    if DJANGO_VERSION >= (1, 10, 0):
+        return user.is_authenticated
+    else:
+        return user.is_authenticated()
+
+
+class PreventConcurrentLoginsMiddleware(deprecation.MiddlewareMixin if DJANGO_VERSION >= (1, 10, 0) else object):
     """
     Django middleware that prevents multiple concurrent logins..
     Adapted from http://stackoverflow.com/a/1814797 and https://gist.github.com/peterdemin/5829440
     """
     def do_check(self, request):
-        if hasattr(request, 'user') and request.user.is_authenticated():
+        if is_authenticated(request.user):
             if not request.session.session_key:
                 request.session.save()
             key_from_cookie = request.session.session_key

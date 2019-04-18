@@ -11,9 +11,10 @@ class PreventConcurrentLoginsMiddleware(object):
     Django middleware that prevents multiple concurrent logins..
     Adapted from http://stackoverflow.com/a/1814797 and https://gist.github.com/peterdemin/5829440
     """
-
-    def process_request(self, request):
-        if request.user.is_authenticated():
+    def do_check(self, request):
+        if hasattr(request, 'user') and request.user.is_authenticated():
+            if not request.session.session_key:
+                request.session.save()
             key_from_cookie = request.session.session_key
             if hasattr(request.user, 'visitor'):
                 session_key_in_visitor_db = request.user.visitor.session_key
@@ -27,3 +28,11 @@ class PreventConcurrentLoginsMiddleware(object):
                     user=request.user,
                     session_key=key_from_cookie
                 )
+
+    def process_request(self, request):
+        self.do_check(request)
+
+    def process_response(self, request, response):
+        self.do_check(request)
+
+        return response
